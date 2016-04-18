@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# This is a bash script for search files by regex string.
+# It also can search files in archives.
+# https://github.com/va1m/shv-file-finder
+
+#file regex
+fileregex="$1"
+export fileregex
+
+#true/false (optional)
+includearch="$2"
+export includearch
+
+#text to search (optional)
+text="$3"
+export text
+
+#For zip listing lines
+removeextrainfo() {
+	line="$1"
+	line=$(echo "$line" | grep -Po '\d+:\d+\s+(.+)' | cut -d' ' -f2-)
+	echo $line
+}
+export -f removeextrainfo
+
+# Callback function for processing each file
+callback() {
+	fullname="$1"
+	shortname=$(basename "$fullname")
+
+	[ "$(echo $shortname | grep -i -P $fileregex)" != "" ] && {
+		echo "$fullname"
+	}
+
+	[ "$includearch" == "true" ] && {
+		[ "$(echo $shortname | grep -P '.*\.(zip|jar|war)')" != "" ] && {
+			res=$(unzip -l "$fullname")
+			linenum=3	#3 lines for table header. Skip it.
+			echo "$res" | while read fullnameinzip; do
+				if [ $linenum == 0 ]; then
+					if [[ $fullnameinzip == '--------- '* ]]; then
+						#End of listing
+						return
+					fi
+					fullnameinzip=$(removeextrainfo "$fullnameinzip")
+					res=$(basename "$fullnameinzip" | grep -i -P "$fileregex")
+					[ "$res" != "" ] && {
+						echo "$fullname:"
+						echo "	$fullnameinzip"
+					}
+				else
+					linenum=$(( $linenum - 1 ))
+				fi
+			done
+			return
+		}
+		[ "$(echo $shortname | grep -P '.*\.(tar\.gz|tgz)')" != "" ] && {
+			res="$(tar -tf $fullname)"
+			echo "$res" | while read fullnameinzip; do
+				res=$(basename "$fullnameinzip" | grep -P "$fileregex")
+				[ "$res" != "" ] && {
+					echo "$fullname:"
+					echo "	$fullnameinzip"
+				}
+			done
+		}
+	}
+
+}
+export -f callback
+
+[ "$fileregex" == "" ] && {
+	echo "This is a script for search files by regex string in the current directory, subdirectories and archives."
+	echo ""
+	echo "Usage:"
+	echo "$0 regex [includearchives]" # [text]"
+	echo "regex           - a file name regex for search"
+	echo "includearchives - true/false. Search in zip, tar.gz archives"
+#	echo "text            - text for search in files"
+	exit 1
+}
+
+find . -type f -exec bash -c 'callback "$0"' '{}' \; 2>&1 | grep -v 'Permission denied'
