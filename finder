@@ -58,7 +58,7 @@ callback() {
 		[ "$(echo $shortname | grep -P '.*\.(tar\.gz|tgz)')" != "" ] && {
 			res="$(tar -tf $fullname)"
 			echo "$res" | while read fullnameinzip; do
-				res=$(basename "$fullnameinzip" | grep -P "$fileregex")
+				res=$(basename "$fullnameinzip" | grep -i -P "$fileregex")
 				[ "$res" != "" ] && {
 					echo "$fullname:"
 					echo "	$fullnameinzip"
