@@ -9,11 +9,11 @@ fileregex="$1"
 export fileregex
 
 #true/false (optional)
-includearch="$2"
+includearch=false
 export includearch
 
 #text to search (optional)
-text="$3"
+text=
 export text
 
 #For zip listing lines
@@ -70,15 +70,36 @@ callback() {
 }
 export -f callback
 
+parseparams() {
+	shift
+	for i in "$@"; do
+		case $i in
+		-a|--arc)
+			includearch=true
+			shift
+			;;
+		-t=*|--text=*)
+			text="${i#*=}"
+			shift # past argument=value
+			;;
+		*)
+			# unknown option
+			;;
+		esac
+	done
+}
+
 [ "$fileregex" == "" ] && {
 	echo "This is a script for search files by regex string in the current directory, subdirectories and archives."
 	echo ""
 	echo "Usage:"
-	echo "$0 regex [includearchives]" # [text]"
-	echo "regex           - a file name regex for search"
-	echo "includearchives - true/false. Search in zip, tar.gz archives"
-#	echo "text            - text for search in files"
+	echo "$(basename $0) regex [-a|--arc]"
+	echo "regex    - A file name regex for search"
+	echo "-a --arc - Search in zip, jar, war, tar.gz, tgz archives. Optional."
 	exit 1
 }
 
+parseparams $@
+
 find . -type f -exec bash -c 'callback "$0"' '{}' \; 2>&1 | grep -v 'Permission denied'
+
